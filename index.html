@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HORWONG SCHOOL</title>
+  <link rel="icon" href="https://hwp.ac.th/wp-content/uploads/2021/08/logo_hwp_y-300x300.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="loading"><div class="spinner"></div></div>
+
+  <!-- Admin Panel moved above header -->
+  <div id="adminPanel" style="display:none; margin-bottom:20px; text-align:right;">
+    <div class="grid">
+      <button class="btn" id="openAddRoomModalBtn">+ เพิ่มห้องใหม่</button>
+    </div>
+  </div>
+
+  <header>
+    <div class="logo"><img src="https://hwp.ac.th/wp-content/uploads/2021/08/logo_hwp_y-300x300.png" alt="Logo"/></div>
+    <div class="title">
+      <h1>HORWONG SCHOOL — ระบบเช็คห้องว่าง</h1>
+      <p>เลือกตึก/ห้องและวันเพื่อดูเวลาที่ว่าง</p>
+    </div>
+  </header>
+
+  <main>
+    <aside class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong>เลือกตึก</strong>
+        <button class="btn" id="resetBtn">รีเซ็ต</button>
+      </div>
+      <div class="search">
+        <select id="buildingSelect">
+          <option value="">-- เลือกตึก --</option>
+          <option value="1">ตึก 1</option>
+          <option value="2">ตึก 2</option>
+          <option value="3">ตึก 3</option>
+          <option value="4">ตึก 4</option>
+          <option value="5">ตึก 5</option>
+        </select>
+      </div>
+      <div class="search"><input id="searchInput" placeholder="ค้นหาห้องในตึก..." /></div>
+      <div class="room-list" id="roomList"></div>
+    </aside>
+
+    <section class="board">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <h3 id="selectedRoomTitle">Welcome To Horwong School</h3>
+            <div class="muted" id="selectedRoomDesc">เช็คห้องว่างในโรงเรียนได้ที่นี่เลย</div>
+          </div>
+          <div class="controls">
+            <select id="daySelect"><option value="">-- กรุณาเลือกวัน --</option></select>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <strong>ตารางเรียน 9 คาบ (08:00 - 15:30)</strong>
+          <p class="muted" style="font-size:12px;margin-top:4px;display:block">* Version Beta Test *</p>
+          <div class="availability" id="slotsArea" style="margin-top:8px"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+    <!-- Admin mode badge -->
+    <div class="admin-badge" id="adminBadge" data-active="false">🛡️ Admin Mode</div>
+    <!-- Discord Chat -->
+    <div class="chat-wrapper">
+      <button id="chatBtn" class="messenger-btn" title="แชทกับแอดมิน">
+        <img src="https://cdn-icons-png.flaticon.com/128/9068/9068693.png" alt="Messenger" />
+      </button>
+  
+      <div id="chatPopup" class="chat-popup">
+        <div class="chat-header" id="chatHeader"><span>แชทกับแอดมินผ่าน Discord</span></div>
+        <div class="chat-body" id="chatBody"></div>
+        <div class="chat-footer">
+          <!-- Section 1: Register email -->
+          <div id="emailSection">
+            <input type="text" id="emailInput" placeholder="กรอกอีเมลของคุณ..." required />
+            <button id="startChatBtn" class="icon-btn" aria-label="เริ่มพูดคุย">
+              <img src="https://cdn-icons-png.flaticon.com/512/6543/6543039.png" alt="Start" />
+            </button>
+          </div>
+          <!-- Section 2: Chat after registration -->
+          <div id="chatSection" style="display:none">
+            <input type="text" id="chatInput" placeholder="พิมพ์ข้อความ..." />
+            <button id="sendMsgBtn" class="icon-btn" aria-label="ส่งข้อความ">
+              <img src="https://cdn-icons-png.flaticon.com/512/3682/3682321.png" alt="Send" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Add Room Modal -->
+    <div class="modal-backdrop" id="addRoomModal">
+      <div class="modal">
+        <div class="modal-header">
+          เพิ่มห้องใหม่
+          <button class="btn secondary" id="closeAddRoomModalBtn">ปิด</button>
+        </div>
+        <div class="modal-body">
+          <input id="modalRoomId" placeholder="หมายเลขห้อง (เช่น 301)" />
+          <input id="modalRoomDesc" placeholder="รายละเอียด (เช่น Smart Classroom)" />
+          <select id="modalRoomBuilding">
+            <option value="1">ตึก 1</option>
+            <option value="2">ตึก 2</option>
+            <option value="3">ตึก 3</option>
+            <option value="4">ตึก 4</option>
+            <option value="5">ตึก 5</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn secondary" id="cancelAddRoomBtn">ยกเลิก</button>
+          <button class="btn" id="confirmAddRoomBtn">เพิ่มห้อง</button>
+        </div>
+      </div>
+    </div>
+  <!-- ====== SCRIPT ====== -->
+  <script>
+    // ====== ห้อง ======
+    const sampleRooms=[
+      // Building 1
+      {id:'131',name:'ห้อง 131',desc:'HORWONG SCHOOL',building:'1'},
+      {id:'132',name:'ห้อง 132',desc:'HORWONG SCHOOL',building:'1'},
+      {id:'134',name:'ห้อง 134',desc:'HORWONG SCHOOL',building:'1'},
+      {id:'135',name:'ห้อง 135',desc:'HORWONG SCHOOL',building:'1'},
+      {id:'141',name:'ห้อง 141',desc:'วิทย์-คอมพิวเตอร์',building:'1'},
+      // Building 2
+      {id:'212',name:'ห้อง 212',desc:'HORWONG SCHOOL',building:'2'},
+      {id:'213',name:'ห้อง 213',desc:'HORWONG SCHOOL',building:'2'},
+      {id:'214',name:'ห้อง 214',desc:'HORWONG SCHOOL',building:'2'},
+      {id:'221',name:'ห้อง 221',desc:'ภาษาอังกฤษ',building:'2'},
+      // Building 3
+      {id:'301',name:'ห้อง 301',desc:'คอมพิวเตอร์กราฟิก',building:'3'},
+      {id:'302',name:'ห้อง 302',desc:'ดนตรี',building:'3'},
+      {id:'303',name:'ห้อง 303',desc:'ศิลปะ',building:'3'},
+      // Building 4
+      {id:'401',name:'ห้อง 401',desc:'ห้องประชุมย่อย',building:'4'},
+      {id:'402',name:'ห้อง 402',desc:'ห้องบันทึกเสียง',building:'4'},
+      // Building 5
+      {id:'501',name:'ห้อง 501',desc:'Smart Classroom',building:'5'},
+      {id:'502',name:'ห้อง 502',desc:'Smart Lab',building:'5'}
+    ];
+    let selectedRoom=null; 
+    let selectedDay='จันทร์';
+    let isAdmin=false;
+
+    const ADMIN_PASSWORD="admin123"; // รหัสเข้าโหมดแอดมิน
+
+    const roomStatus={ 
+      '131': {'จันทร์':[true,false,true,true,false,true,true,false,true]},
+      '132': {'จันทร์':[true,true,false,false,true,false,true,true,false]},
+      '134': {'จันทร์':[false,true,true,false,true,true,false,true,true]},
+      '135': {'จันทร์':[true,false,false,true,true,false,true,false,true]},
+      '212': {'จันทร์':[true,true,true,false,false,true,false,true,true]},
+      '213': {'จันทร์':[false,true,false,true,true,false,true,false,true]},
+      '214': {'จันทร์':[true,false,true,false,true,true,false,true,false]} 
+    };
+
+    const roomListEl=document.getElementById('roomList');
+    const selectedRoomTitle=document.getElementById('selectedRoomTitle');
+    const selectedRoomDesc=document.getElementById('selectedRoomDesc');
+    const buildingSelect=document.getElementById('buildingSelect');
+    const searchInput=document.getElementById('searchInput');
+    const slotsArea=document.getElementById('slotsArea');
+    const daySelect=document.getElementById('daySelect');
+    const resetBtn=document.getElementById('resetBtn');
+    const loadingEl=document.getElementById('loading');
+    const adminPanel=document.getElementById('adminPanel');
+    const adminBadge=document.getElementById('adminBadge');
+
+    // Modal elements
+    const addRoomModal=document.getElementById('addRoomModal');
+    const openAddRoomModalBtn=document.getElementById('openAddRoomModalBtn');
+    const closeAddRoomModalBtn=document.getElementById('closeAddRoomModalBtn');
+    const cancelAddRoomBtn=document.getElementById('cancelAddRoomBtn');
+    const confirmAddRoomBtn=document.getElementById('confirmAddRoomBtn');
+    const modalRoomId=document.getElementById('modalRoomId');
+    const modalRoomDesc=document.getElementById('modalRoomDesc');
+    const modalRoomBuilding=document.getElementById('modalRoomBuilding');
+
+    const weekdays=['จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์'];
+    weekdays.forEach(d=>{const opt=document.createElement('option'); opt.value=d; opt.textContent=d; daySelect.appendChild(opt);});
+    daySelect.value='จันทร์';
+
+    function showLoading(){ loadingEl.style.display='flex'; }
+    function hideLoading(){ setTimeout(()=>loadingEl.style.display='none',100); }
+
+    function renderRooms(){
+      showLoading();
+      roomListEl.innerHTML='';
+      const filterText=searchInput.value.trim().toLowerCase();
+      const building=buildingSelect.value;
+      sampleRooms.filter(r=>{
+        if(building && r.building!==building) return false;
+        if(!filterText) return true;
+        return r.name.toLowerCase().includes(filterText)||(r.desc||'').toLowerCase().includes(filterText);
+      }).forEach(r=>{
+        const div=document.createElement('div');
+        div.className='room-item';
+        div.dataset.id=r.id;
+        div.innerHTML=`<div class="thumb">${r.building}</div><div class="meta"><h4>${r.name}</h4><p class="muted">${r.desc}</p></div>`;
+        div.addEventListener('click',()=>{ selectRoom(r.id); document.querySelectorAll('.room-item').forEach(x=>x.dataset.selected=false); div.dataset.selected=true; });
+        roomListEl.appendChild(div);
+      });
+      hideLoading();
+    }
+
+    function selectRoom(id){
+      showLoading();
+      selectedRoom=sampleRooms.find(r=>r.id===id);
+      selectedRoomTitle.textContent=selectedRoom.name;
+      selectedRoomDesc.textContent=selectedRoom.desc;
+      renderSlots();
+      hideLoading();
+    }
+
+    function renderSlots(){
+      slotsArea.style.opacity=0;
+      slotsArea.innerHTML='';
+      if(!selectedRoom){ slotsArea.innerHTML='<div class="muted">ยังไม่ได้เลือกห้อง</div>'; slotsArea.style.opacity=1; return; }
+      if(!selectedDay){ slotsArea.innerHTML='<div class="muted">กรุณาเลือกวันจันทร์-ศุกร์</div>'; slotsArea.style.opacity=1; return; }
+
+      const slots=[{time:'08:00'},{time:'08:50'},{time:'09:40'},{time:'10:30'},{time:'11:20'},{time:'12:10'},{time:'13:00'},{time:'13:50'},{time:'14:40'}];
+
+      if(!roomStatus[selectedRoom.id]) roomStatus[selectedRoom.id]={};
+      if(!roomStatus[selectedRoom.id][selectedDay]) roomStatus[selectedRoom.id][selectedDay]=new Array(slots.length).fill(false);
+      // Create Morning Group
+      const morningGroup=document.createElement('div');
+      morningGroup.className='slot-group';
+      const morningTitle=document.createElement('h4');
+      morningTitle.textContent='ช่วงเช้า';
+      const morningContainer=document.createElement('div');
+      morningContainer.className='slot-container';
+      morningGroup.appendChild(morningTitle);
+      morningGroup.appendChild(morningContainer);
+
+      // Create Afternoon Group
+      const afternoonGroup=document.createElement('div');
+      afternoonGroup.className='slot-group';
+      const afternoonTitle=document.createElement('h4');
+      afternoonTitle.textContent='ช่วงบ่าย';
+      const afternoonContainer=document.createElement('div');
+      afternoonContainer.className='slot-container afternoon-container';
+      afternoonGroup.appendChild(afternoonTitle);
+      afternoonGroup.appendChild(afternoonContainer);
+
+      // Build slot elements and add to the correct group
+      slots.forEach((s,i)=>{
+        const el=document.createElement('div');
+        const free=roomStatus[selectedRoom.id][selectedDay][i];
+        const baseClass='slot ' + (free?'free':'busy');
+        // Morning: index 0-4 (08:00 - 11:20), Afternoon: index 5-8 (12:10 - 14:40)
+        if(i<=4){
+          el.className=baseClass;
+        }else{
+          el.className=baseClass+' afternoon-slot';
+        }
+        el.innerHTML=`<div>${s.time}</div><div class="status">${free?'ว่าง':'ไม่ว่าง'}</div>`;
+        if(isAdmin){
+          el.style.cursor='pointer';
+          el.addEventListener('click',()=>{
+            roomStatus[selectedRoom.id][selectedDay][i]=!roomStatus[selectedRoom.id][selectedDay][i];
+            renderSlots();
+          });
+        }
+        if(i<=4){
+          morningContainer.appendChild(el);
+        }else{
+          afternoonContainer.appendChild(el);
+        }
+      });
+
+      // Append groups to main area
+      slotsArea.appendChild(morningGroup);
+      slotsArea.appendChild(afternoonGroup);
+      setTimeout(()=>{slotsArea.style.opacity=1},100);
+    }
+
+    daySelect.addEventListener('change',()=>{ selectedDay=daySelect.value; renderSlots(); });
+    resetBtn.addEventListener('click',()=>{
+      buildingSelect.value=''; searchInput.value=''; selectedRoom=null; selectedDay='จันทร์';
+      selectedRoomTitle.textContent='กรุณาเลือกห้อง'; selectedRoomDesc.textContent='รายละเอียดจะปรากฏที่นี่';
+      daySelect.value='จันทร์'; slotsArea.innerHTML=''; renderRooms();
+    });
+    buildingSelect.addEventListener('change',renderRooms);
+    searchInput.addEventListener('input',renderRooms);
+    renderRooms();
+
+  // ===== Discord Chat =====
+  const chatBtn = document.getElementById('chatBtn');
+  const chatPopup = document.getElementById('chatPopup');
+  const chatHeader = document.getElementById('chatHeader');
+  const chatBody = document.getElementById('chatBody');
+  const emailSection = document.getElementById('emailSection');
+  const chatSection = document.getElementById('chatSection');
+  const chatInput = document.getElementById('chatInput');
+  const emailInput = document.getElementById('emailInput');
+  const startChatBtn = document.getElementById('startChatBtn');
+  const sendMsgBtn = document.getElementById('sendMsgBtn');
+
+  let ws = null;
+  let isEmailLocked = false;
+
+  function addMessage(msg, sender = 'admin') {
+    const div = document.createElement('div');
+    div.className = 'message ' + (sender === 'admin' ? 'admin' : 'user');
+    
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    
+    if (sender !== 'admin' && sender !== 'user') {
+      // Message from Discord user
+      const senderName = document.createElement('div');
+      senderName.className = 'message-sender';
+      senderName.textContent = sender;
+      messageContent.appendChild(senderName);
+    }
+    
+    const text = document.createElement('div');
+    text.className = 'message-text';
+    text.textContent = msg;
+    messageContent.appendChild(text);
+    
+    div.appendChild(messageContent);
+    chatBody.appendChild(div);
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  // ===== Chat history (persist to localStorage per email) =====
+  function historyKey(email) { return `chatHistory:${email}`; }
+
+  function saveMessageToHistory(email, entry) {
+    try {
+      const key = historyKey(email);
+      const arr = JSON.parse(localStorage.getItem(key) || '[]');
+      arr.push(entry);
+      localStorage.setItem(key, JSON.stringify(arr));
+    } catch (e) { console.error('Failed saving history', e); }
+  }
+
+  function loadHistory(email) {
+    try {
+      const key = historyKey(email);
+      const arr = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  }
+
+  function renderHistory(email) {
+    const items = loadHistory(email);
+    if (!items.length) return;
+    chatBody.innerHTML = '';
+    for (const it of items) {
+      addMessage(it.message, it.sender);
+    }
+  }
+
+  function connectWebSocket(email) {
+    if (ws) {
+      if (ws.readyState === WebSocket.OPEN) return;
+      ws.close(); // Close existing connection if it exists but not open
+    }
+    
+    // Connect to WebSocket server
+    ws = new WebSocket(`ws://${window.location.host}`);
+    
+    ws.onopen = () => {
+      console.log('Connected to chat server');
+      // Register this connection with the user's email
+      ws.send(JSON.stringify({
+        type: 'register',
+        email: email
+      }));
+      // Lock and persist email
+      emailInput.disabled = true;
+      isEmailLocked = true;
+      localStorage.setItem('chatEmail', email);
+      // Switch UI to chat section
+      emailSection.style.display = 'none';
+      chatSection.style.display = '';
+      chatInput.focus();
+
+      // Render previous history for this email
+      renderHistory(email);
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        switch (data.type) {
+          case 'message':
+            // Always show Discord-side replies as 'admin'
+            addMessage(data.message, 'admin');
+            // Persist incoming message as 'admin'
+            const eml = localStorage.getItem('chatEmail');
+            if (eml) {
+              saveMessageToHistory(eml, {
+                sender: 'admin',
+                message: data.message,
+                timestamp: data.timestamp || new Date().toISOString()
+              });
+            }
+            break;
+          case 'error':
+            console.error('Server error:', data.message);
+            addMessage(`เกิดข้อผิดพลาด: ${data.message}`, 'admin');
+            break;
+          default:
+            console.log('Unknown message type:', data);
+        }
+      } catch (e) {
+        console.error('Error parsing message:', e);
+      }
+    };
+    
+    ws.onclose = () => {
+      console.log('Disconnected from chat server');
+      if (isEmailLocked) {
+        addMessage('การเชื่อมต่อถูกปิด กรุณารีเฟรชหน้าเว็บเพื่อเชื่อมต่อใหม่', 'admin');
+      }
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      addMessage('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์', 'admin');
+    };
+  }
+
+  // Handle chat button click
+  chatBtn.addEventListener('click', () => {
+    const isVisible = chatPopup.style.display === 'flex';
+    chatPopup.style.display = isVisible ? 'none' : 'flex';
+    
+    if (!isVisible) {
+      // Show chat popup
+      if (chatBody.children.length === 0) {
+        const savedEmail = localStorage.getItem('chatEmail');
+        if (!savedEmail) {
+          addMessage('สวัสดี! กรุณากรอกอีเมลของคุณเพื่อเริ่มสนทนากับทีมงาน', 'admin');
+        }
+      }
+      
+      // Focus on the appropriate input
+      if (isEmailLocked) {
+        chatInput.focus();
+      } else {
+        emailInput.focus();
+      }
+
+      // Auto-connect if email previously saved
+      const savedEmail = localStorage.getItem('chatEmail');
+      if (savedEmail && !isEmailLocked) {
+        emailInput.value = savedEmail;
+        emailInput.disabled = true;
+        isEmailLocked = true;
+        emailSection.style.display = 'none';
+        chatSection.style.display = '';
+        connectWebSocket(savedEmail);
+      }
+    }
+  });
+
+  // Toggle chat popup when clicking header
+  chatHeader.addEventListener('click', () => {
+    chatPopup.style.display = chatPopup.style.display === 'flex' ? 'none' : 'flex';
+  });
+
+  // Handle start chat (register email)
+  startChatBtn.addEventListener('click', () => {
+    const email = emailInput.value.trim();
+    if (!email) return addMessage('กรุณากรอกอีเมลของคุณก่อนเริ่มพูดคุย', 'admin');
+    if (!validateEmail(email)) return addMessage('กรุณากรอกอีเมลให้ถูกต้อง', 'admin');
+    connectWebSocket(email);
+  });
+
+  // Handle send message button click
+  sendMsgBtn.addEventListener('click', sendMessage);
+  
+  // Handle Enter key in message input
+  chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      sendMessage();
+    }
+  });
+  
+  // Handle Enter key in email input
+  emailInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && emailInput.value.trim()) {
+      const email = emailInput.value.trim();
+      if (validateEmail(email)) {
+        connectWebSocket(email);
+        chatInput.focus();
+      } else {
+        addMessage('กรุณากรอกอีเมลให้ถูกต้อง', 'admin');
+      }
+    }
+  });
+  
+  function sendMessage() {
+    const email = emailInput.value.trim();
+    const msg = chatInput.value.trim();
+    
+    if (!msg) return; // Don't send empty messages
+    
+    if (!isEmailLocked) {
+      // First message - validate and connect
+      if (!email) {
+        addMessage('กรุณากรอกอีเมลของคุณก่อนส่งข้อความ', 'admin');
+        emailInput.focus();
+        return;
+      }
+      
+      if (!validateEmail(email)) {
+        addMessage('กรุณากรอกอีเมลให้ถูกต้อง', 'admin');
+        emailInput.focus();
+        return;
+      }
+      
+      // Connect with the provided email
+      connectWebSocket(email);
+    }
+    
+    // If we're connected, send the message
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'message',
+        message: msg,
+        sender: 'user',
+        timestamp: new Date().toISOString()
+      }));
+      
+      // Add message to chat UI
+      addMessage(msg, 'user');
+      // Persist outgoing message
+      const eml = localStorage.getItem('chatEmail') || email;
+      if (eml) {
+        saveMessageToHistory(eml, {
+          sender: 'user',
+          message: msg,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      // Clear input and keep focus
+      chatInput.value = '';
+      chatInput.focus();
+    } else {
+    }
+  }
+  
+  function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  }
+
+  // Initialize UI state based on persisted email
+  (function initChatUI() {
+    const savedEmail = localStorage.getItem('chatEmail');
+    if (savedEmail) {
+      emailInput.value = savedEmail;
+      emailInput.disabled = true;
+      isEmailLocked = true;
+      emailSection.style.display = 'none';
+      chatSection.style.display = '';
+      // Render previous messages immediately
+      renderHistory(savedEmail);
+    }
+  })();
+  
+    // ============ ADMIN MODE ============
+    document.addEventListener('keydown',(e)=>{
+      if(e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='a'){
+        if(!isAdmin){
+          const input=prompt("กรุณาใส่รหัสแอดมิน:");
+          if(input===ADMIN_PASSWORD){
+            isAdmin=true;
+            alert("เข้าสู่โหมดแอดมินสำเร็จ");
+          }else{
+            alert("รหัสผิด!");
+            return;
+          }
+        }else{
+          isAdmin=false;
+          alert("ออกจากโหมดแอดมินแล้ว");
+        }
+        adminPanel.style.display=isAdmin?'block':'none';
+        adminBadge.dataset.active = isAdmin ? 'true' : 'false';
+        renderSlots();
+      }
+    });
+
+    // ===== Add Room Modal Logic =====
+    function openAddRoomModal(){
+      modalRoomId.value='';
+      modalRoomDesc.value='';
+      modalRoomBuilding.value=buildingSelect.value || '1';
+      addRoomModal.style.display='flex';
+      setTimeout(()=>modalRoomId.focus(),50);
+    }
+    function closeAddRoomModal(){
+      addRoomModal.style.display='none';
+    }
+    if(openAddRoomModalBtn){ openAddRoomModalBtn.addEventListener('click', openAddRoomModal); }
+    if(closeAddRoomModalBtn){ closeAddRoomModalBtn.addEventListener('click', closeAddRoomModal); }
+    if(cancelAddRoomBtn){ cancelAddRoomBtn.addEventListener('click', closeAddRoomModal); }
+    addRoomModal.addEventListener('click',(e)=>{ if(e.target===addRoomModal) closeAddRoomModal(); });
+    // Enter to confirm in modal
+    [modalRoomId, modalRoomDesc].forEach(inp=>{
+      inp.addEventListener('keypress',(e)=>{ if(e.key==='Enter'){ confirmAddRoomBtn.click(); }});
+    });
+    confirmAddRoomBtn.addEventListener('click',()=>{
+      const id=modalRoomId.value.trim();
+      const name=id ? `ห้อง ${id}` : '';
+      const desc=modalRoomDesc.value.trim();
+      const building=modalRoomBuilding.value;
+      if(!id){ alert('กรุณากรอกหมายเลขห้อง'); return; }
+      // Prevent duplicate IDs
+      if(sampleRooms.some(r=>r.id===id)){
+        alert('มีรหัสห้องนี้อยู่แล้ว');
+        return;
+      }
+      sampleRooms.push({id,name,desc,building});
+      // If a building is chosen, filter to it
+      buildingSelect.value = building;
+      renderRooms();
+      // Auto-select newly added room
+      selectRoom(id);
+      alert('เพิ่มห้องสำเร็จ');
+      closeAddRoomModal();
+    });
+  </script>
+</body>
+</html>
